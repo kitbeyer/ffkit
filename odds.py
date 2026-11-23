@@ -40,6 +40,7 @@ def update_sports(outpath):
     if response.status_code != 200:
         print(f'Failed to get sports: status_code {response.status_code}, response body {response.text}')
     else:
+        outpath.parent.mkdir(parents=True, exist_ok=True)
         with open(outpath, 'w') as outfile:
             json.dump(response.json(), outfile, sort_keys=True, indent=4)
 
@@ -176,7 +177,7 @@ if __name__ == "__main__":
     teams_week = pd.concat([teams_week_home, teams_week_away])
 
     teams_week = teams_week[['team', 'opponent', 'commence_time', 'implied_pf', 'implied_pa', 'game_id']]
-    teams_week = teams_week.sort_values(by='implied_pf', ascending=False)
+    teams_week = teams_week.sort_values(by='implied_pa', ascending=True)
 
     teams_week.to_csv(games_path, index=False)
 
