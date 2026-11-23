@@ -1378,18 +1378,14 @@ html, body {
   }
 
   .scoreboard-list {
-    flex-direction: row;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
+    flex-direction: column;
+    overflow-x: visible;
     padding: 8px 12px 10px;
-    gap: 8px;
+    gap: 7px;
   }
 
   .scoreboard-card {
-    min-width: 280px;
-    flex-shrink: 0;
-    scroll-snap-align: start;
+    width: 100%;
   }
 
   .main-pane {

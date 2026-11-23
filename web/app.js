@@ -372,6 +372,9 @@
         state.selectedMatchupId = Number(el.getAttribute("data-matchup-id"));
         renderMatchupStrip();
         renderSelectedMatchup();
+        if (window.innerWidth <= 768) {
+          matchupDetailEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       });
     });
   }
@@ -405,17 +408,17 @@
                   ${esc(t.team_name)}
                 </div>
                 <div class="hero-team-meta">
-                  ${t.rank ? `#${t.rank} · ` : ""}${fmtRecord(t.wins, t.losses, t.ties)}${streakHtml} · ${fmt(t.fpts, 1)} PF
+                  ${t.rank ? `#${t.rank} · ` : ""}${fmtRecord(t.wins, t.losses, t.ties)}${streakHtml}
                 </div>
                 <div class="hero-team-owner">@${esc(t.owner_name)}</div>
               </div>
             </div>
 
-            <div class="hero-status-counts">
-              ${t.totals.active_count > 0 ? `<span class="pill pill-live"><span class="pulse-dot"></span> ${t.totals.active_count} Active</span>` : ""}
-              ${t.totals.pre_count > 0 ? `<span class="pill">${t.totals.pre_count} Yet to Play</span>` : ""}
-              <span class="pill">${t.totals.post_count} Final</span>
-            </div>
+            ${t.totals.active_count > 0 ? `
+              <div class="hero-status-counts">
+                <span class="pill pill-live"><span class="pulse-dot"></span> ${t.totals.active_count} Active</span>
+              </div>
+            ` : ""}
           </div>
 
           <div class="hero-score-col">
