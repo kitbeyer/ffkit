@@ -660,14 +660,14 @@
 
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", () => {
-      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      const current = document.documentElement.getAttribute("data-theme") || "light";
       applyTheme(current === "dark" ? "light" : "dark");
     });
   }
 
   // Boot
   async function init() {
-    applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+    applyTheme(localStorage.getItem(THEME_KEY) || "light");
     try {
       const nflState = await fetchJson("/api/nfl-state");
       state.nflState = nflState;
