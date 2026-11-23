@@ -971,6 +971,10 @@ html, body {
   display: flex;
 }
 
+.hero-swipe-dots {
+  display: none;
+}
+
 /* Lineup Tables */
 .section-bar {
   display: flex;
@@ -1407,8 +1411,30 @@ html, body {
 
   /* Compact side-by-side Hero Card */
   .hero-card {
-    padding: 12px 10px;
+    padding: 12px 10px 10px;
     margin-bottom: 12px;
+    touch-action: pan-y;
+  }
+
+  .hero-swipe-dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .swipe-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-strong);
+    transition: background 0.15s, transform 0.15s;
+  }
+
+  .swipe-dot.active {
+    background: var(--accent);
+    transform: scale(1.25);
   }
 
   .hero-teams {

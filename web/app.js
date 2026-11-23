@@ -469,9 +469,15 @@
 
     const winA = t1 ? t1.win_prob : 50;
     const winB = t2 ? t2.win_prob : 50;
+    const currentIdx = matchups.findIndex((m) => m.matchup_id === matchup.matchup_id);
+    const swipeDotsHtml = matchups.length > 1
+      ? `<div class="hero-swipe-dots" aria-hidden="true">${matchups
+          .map((m, i) => `<span class="swipe-dot ${i === currentIdx ? "active" : ""}"></span>`)
+          .join("")}</div>`
+      : "";
 
     matchupDetailEl.innerHTML = `
-      <div class="hero-card">
+      <div id="hero-card" class="hero-card">
         <div class="hero-teams">
           ${renderHeroTeam(t1, "left")}
           <div class="hero-vs">
@@ -491,6 +497,7 @@
             </div>
           </div>
         ` : ""}
+        ${swipeDotsHtml}
       </div>
 
       <div class="section-bar">
@@ -511,6 +518,30 @@
         </div>
       ` : ""}
     `;
+
+    const heroCardEl = document.getElementById("hero-card");
+    if (heroCardEl && matchups.length > 1) {
+      let touchStartX = 0;
+      let touchStartY = 0;
+      heroCardEl.addEventListener("touchstart", (e) => {
+        if (e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      heroCardEl.addEventListener("touchend", (e) => {
+        if (window.innerWidth > 768 || e.changedTouches.length !== 1) return;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) >= 45 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+          const step = dx < 0 ? 1 : -1;
+          const nextIdx = (currentIdx + step + matchups.length) % matchups.length;
+          state.selectedMatchupId = matchups[nextIdx].matchup_id;
+          renderMatchupStrip();
+          renderSelectedMatchup();
+        }
+      }, { passive: true });
+    }
 
     const toggleBenchBtn = document.getElementById("toggle-bench-btn");
     if (toggleBenchBtn) {
