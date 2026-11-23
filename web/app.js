@@ -14,6 +14,7 @@
     autoRefresh: true,
     refreshTimer: null,
     benchExpanded: true,
+    leagueMenuOpen: false,
   };
 
   // DOM Elements
@@ -37,7 +38,11 @@
   const lastUpdatedEl = document.getElementById("last-updated");
 
   const leaguesCountEl = document.getElementById("leagues-count");
-  const leaguesListEl = document.getElementById("leagues-list");
+  const leagueSwitcherWrapEl = document.getElementById("league-switcher-wrap");
+  const currentLeagueSlotEl = document.getElementById("current-league-slot");
+  const leaguesDropdownEl = document.getElementById("leagues-dropdown");
+  const scoreboardHeadingEl = document.getElementById("scoreboard-heading");
+  const matchupsCountEl = document.getElementById("matchups-count");
   const activeLeagueTitleEl = document.getElementById("active-league-title");
   const activeLeagueBadgesEl = document.getElementById("active-league-badges");
   const matchupsStripEl = document.getElementById("matchups-strip");
@@ -184,54 +189,84 @@
     }
   }
 
-  // Render leftmost pane: League Summary Tiles
+  function renderLeagueTileHtml(lg, { isCurrentTrigger = false, isSelected = false } = {}) {
+    const ut = lg.user_team;
+    const recordStr = ut ? fmtRecord(ut.wins, ut.losses, ut.ties) : "—";
+    const rankStr = ut && ut.rank ? `#${ut.rank}/${lg.total_rosters}` : `${lg.total_rosters}T`;
+    const streakHtml = ut && ut.streak
+      ? `<span class="${ut.streak.includes("W") ? "streak-w" : "streak-l"}">${esc(ut.streak)}</span>`
+      : "";
+    const chevronHtml = isCurrentTrigger && state.leagues.length > 1
+      ? `<span class="league-chevron" title="Switch league">${state.leagueMenuOpen ? "▴" : "▾"}</span>`
+      : "";
+
+    return `
+      <div class="league-tile ${isSelected ? "selected" : ""} ${isCurrentTrigger ? "current-trigger" : ""}" data-league-id="${esc(lg.league_id)}">
+        <div class="league-tile-top">
+          ${renderAvatar(lg.avatar_url, lg.name, "avatar-md")}
+          <div class="league-tile-info">
+            <div class="league-tile-title-row">
+              <div class="league-tile-name" title="${esc(lg.name)}">${esc(lg.name)}</div>
+              ${chevronHtml}
+            </div>
+            <div class="badge-row">
+              ${lg.is_best_ball ? `<span class="pill pill-bestball">Best Ball</span>` : ""}
+              <span class="pill">${esc(lg.league_type)}</span>
+              <span class="pill">${esc(lg.scoring_label)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="league-tile-stats">
+          <span><span class="league-record">${esc(recordStr)}</span> · ${esc(rankStr)} ${streakHtml}</span>
+          <span>${ut ? `${fmt(ut.fpts, 1)} PF` : ""}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Render leftmost pane top: Current League Tile + Click-to-Change Dropdown
   function renderLeagues() {
     leaguesCountEl.textContent = String(state.leagues.length);
     if (state.leagues.length === 0) {
-      leaguesListEl.innerHTML = `<div class="empty-state">No leagues for ${state.season}</div>`;
+      currentLeagueSlotEl.innerHTML = `<div class="empty-state" style="padding:14px;">No leagues for ${state.season}</div>`;
+      leaguesDropdownEl.innerHTML = "";
+      leaguesDropdownEl.classList.add("hidden");
       return;
     }
 
-    leaguesListEl.innerHTML = state.leagues
-      .map((lg) => {
-        const selected = lg.league_id === state.selectedLeagueId ? "selected" : "";
-        const ut = lg.user_team;
-        const recordStr = ut ? fmtRecord(ut.wins, ut.losses, ut.ties) : "—";
-        const rankStr = ut && ut.rank ? `#${ut.rank}/${lg.total_rosters}` : `${lg.total_rosters}T`;
-        const streakHtml = ut && ut.streak
-          ? `<span class="${ut.streak.includes("W") ? "streak-w" : "streak-l"}">${esc(ut.streak)}</span>`
-          : "";
+    const activeLeague = state.leagues.find((l) => l.league_id === state.selectedLeagueId) || state.leagues[0];
+    currentLeagueSlotEl.innerHTML = renderLeagueTileHtml(activeLeague, { isCurrentTrigger: true, isSelected: true });
 
-        return `
-          <div class="league-tile ${selected}" data-league-id="${esc(lg.league_id)}">
-            <div class="league-tile-top">
-              ${renderAvatar(lg.avatar_url, lg.name, "avatar-md")}
-              <div class="league-tile-info">
-                <div class="league-tile-name" title="${esc(lg.name)}">${esc(lg.name)}</div>
-                <div class="badge-row">
-                  ${lg.is_best_ball ? `<span class="pill pill-bestball">Best Ball</span>` : ""}
-                  <span class="pill">${esc(lg.league_type)}</span>
-                  <span class="pill">${esc(lg.scoring_label)}</span>
-                </div>
-              </div>
-            </div>
-            <div class="league-tile-stats">
-              <span><span class="league-record">${esc(recordStr)}</span> · ${esc(rankStr)} ${streakHtml}</span>
-              <span>${ut ? `${fmt(ut.fpts, 1)} PF` : ""}</span>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-
-    leaguesListEl.querySelectorAll(".league-tile").forEach((el) => {
-      el.addEventListener("click", () => {
-        const lid = el.getAttribute("data-league-id");
-        if (lid !== state.selectedLeagueId) {
-          selectLeague(lid, false);
-        }
+    const triggerEl = currentLeagueSlotEl.querySelector(".league-tile");
+    if (triggerEl && state.leagues.length > 1) {
+      triggerEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        state.leagueMenuOpen = !state.leagueMenuOpen;
+        renderLeagues();
       });
-    });
+    }
+
+    if (state.leagueMenuOpen && state.leagues.length > 1) {
+      leaguesDropdownEl.classList.remove("hidden");
+      leaguesDropdownEl.innerHTML = state.leagues
+        .map((lg) => renderLeagueTileHtml(lg, { isCurrentTrigger: false, isSelected: lg.league_id === state.selectedLeagueId }))
+        .join("");
+
+      leaguesDropdownEl.querySelectorAll(".league-tile").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const lid = el.getAttribute("data-league-id");
+          state.leagueMenuOpen = false;
+          if (lid !== state.selectedLeagueId) {
+            selectLeague(lid, false);
+          } else {
+            renderLeagues();
+          }
+        });
+      });
+    } else {
+      leaguesDropdownEl.classList.add("hidden");
+    }
   }
 
   // Select a league and fetch its live scoreboard
@@ -276,18 +311,21 @@
     if (!lg) return;
     activeLeagueTitleEl.textContent = `${lg.name} · Week ${lg.week}`;
     activeLeagueBadgesEl.innerHTML = `
-      ${lg.is_best_ball ? `<span class="pill pill-bestball">Best Ball Optimal</span>` : ""}
+      ${lg.is_best_ball ? `<span class="pill pill-bestball">Best Ball</span>` : ""}
       <span class="pill">${esc(lg.league_type)}</span>
       <span class="pill">${esc(lg.scoring_label)}</span>
       <span class="pill">${lg.total_rosters} Teams</span>
     `;
   }
 
-  // Render top strip of right pane: Matchup Summary Tiles
+  // Render left-pane scoreboard: traditional stacked sports-app matchup cards
   function renderMatchupStrip() {
     const matchups = state.scoreboard?.matchups || [];
+    scoreboardHeadingEl.textContent = `Week ${state.week} Scoreboard`;
+    matchupsCountEl.textContent = String(matchups.length);
+
     if (matchups.length === 0) {
-      matchupsStripEl.innerHTML = `<div class="empty-state" style="padding:12px;">No matchups scheduled for Week ${state.week}.</div>`;
+      matchupsStripEl.innerHTML = `<div class="empty-state" style="padding:16px;">No matchups scheduled for Week ${state.week}.</div>`;
       return;
     }
 
@@ -299,66 +337,37 @@
         const winA = t1 ? t1.win_prob : 50;
         const winB = t2 ? t2.win_prob : 50;
 
-        const renderTeamHeader = (t, side) => {
+        const renderScoreboardRow = (t) => {
           if (!t) {
-            return `<div class="tile-team-col ${side}"><div class="tile-team-rec">BYE</div></div>`;
+            return `<div class="sb-team-row"><div class="sb-team-id"><span class="sb-team-rec">BYE</span></div></div>`;
           }
           return `
-            <div class="tile-team-col ${side}">
-              ${renderAvatar(t.avatar_url, t.team_name, "avatar-xs")}
-              <div class="tile-team-meta">
-                <div class="tile-team-name" title="${esc(t.team_name)}">${esc(t.team_name)}</div>
-                <div class="tile-team-rec">${fmtRecord(t.wins, t.losses, t.ties)}${t.rank ? ` · #${t.rank}` : ""}</div>
+            <div class="sb-team-row">
+              <div class="sb-team-id">
+                ${renderAvatar(t.avatar_url, t.team_name, "avatar-xs")}
+                <div class="sb-team-meta">
+                  <div class="sb-team-name" title="${esc(t.team_name)}">${esc(t.team_name)}</div>
+                  <div class="sb-team-rec">${fmtRecord(t.wins, t.losses, t.ties)}${t.rank ? ` · #${t.rank}` : ""}</div>
+                </div>
               </div>
-            </div>
-          `;
-        };
-
-        const renderTeamScore = (t, side) => {
-          if (!t) return `<div class="tile-score-col ${side}"></div>`;
-          const delta = fmtDelta(t.totals.delta_vs_pregame);
-          return `
-            <div class="tile-score-col ${side}">
-              <div class="tile-actual" title="Actual score">${fmt(t.totals.actual)}</div>
-              <div class="tile-proj-row">
-                <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game">${delta.text}</span>
-                <span class="tile-live" title="Live projection">${fmt(t.totals.live_proj, 1)}</span>
+              <div class="sb-team-scores">
+                <span class="sb-live" title="Live projection">${fmt(t.totals.live_proj, 1)}</span>
+                <span class="sb-actual" title="Actual score">${fmt(t.totals.actual)}</span>
               </div>
             </div>
           `;
         };
 
         return `
-          <div class="matchup-tile ${selected}" data-matchup-id="${m.matchup_id}">
-            <div class="tile-teams-top">
-              ${renderTeamHeader(t1, "left")}
-              ${renderTeamHeader(t2, "right")}
-            </div>
-            <div class="tile-scores-mid">
-              ${renderTeamScore(t1, "left")}
-              <div class="tile-divider"></div>
-              ${renderTeamScore(t2, "right")}
-            </div>
-            ${t1 && t2 ? `
-              <div class="win-bar">
-                <div class="win-bar-a" style="width:${winA}%"></div>
-                <div class="win-bar-b" style="width:${winB}%"></div>
-              </div>
-              <div class="win-bar-labels">
-                <span>${winA.toFixed(1)}%</span>
-                <span class="tile-status-mid">
-                  ${anyLive ? `<span class="pulse-dot" title="Active players in-game"></span>` : ""}
-                  ${m.is_user_matchup ? `<span class="pill pill-user">You</span>` : ""}
-                </span>
-                <span>${winB.toFixed(1)}%</span>
-              </div>
-            ` : ""}
+          <div class="scoreboard-card ${selected}" data-matchup-id="${m.matchup_id}">
+            ${renderScoreboardRow(t1)}
+            ${renderScoreboardRow(t2)}
           </div>
         `;
       })
       .join("");
 
-    matchupsStripEl.querySelectorAll(".matchup-tile").forEach((el) => {
+    matchupsStripEl.querySelectorAll(".scoreboard-card").forEach((el) => {
       el.addEventListener("click", () => {
         state.selectedMatchupId = Number(el.getAttribute("data-matchup-id"));
         renderMatchupStrip();
@@ -367,12 +376,12 @@
     });
   }
 
-  // Render detailed matchup view below strip
+  // Render detailed matchup view in right pane
   function renderSelectedMatchup() {
     const matchups = state.scoreboard?.matchups || [];
     const matchup = matchups.find((m) => m.matchup_id === state.selectedMatchupId);
     if (!matchup) {
-      matchupDetailEl.innerHTML = `<div class="empty-state">Select a matchup above to view details.</div>`;
+      matchupDetailEl.innerHTML = `<div class="empty-state">Select a matchup from the scoreboard to view details.</div>`;
       return;
     }
 
@@ -385,40 +394,36 @@
       const streakHtml = t.streak
         ? ` · <span class="${t.streak.includes("W") ? "streak-w" : "streak-l"}">${esc(t.streak)}</span>`
         : "";
-      const subOwner = t.team_name !== t.owner_name ? `@${t.owner_name} · ` : "";
 
       return `
         <div class="hero-team ${side}">
-          <div class="hero-team-id">
-            ${renderAvatar(t.avatar_url, t.team_name, "avatar-lg")}
-            <div>
-              <div class="hero-team-name">
-                ${esc(t.team_name)}
-                ${t.is_user ? `<span class="pill pill-user" style="vertical-align:middle;margin-left:4px;">You</span>` : ""}
+          <div class="hero-team-info">
+            <div class="hero-team-id">
+              ${renderAvatar(t.avatar_url, t.team_name, "avatar-lg")}
+              <div style="min-width:0;">
+                <div class="hero-team-name">
+                  ${esc(t.team_name)}
+                </div>
+                <div class="hero-team-meta">
+                  ${t.rank ? `#${t.rank} · ` : ""}${fmtRecord(t.wins, t.losses, t.ties)}${streakHtml} · ${fmt(t.fpts, 1)} PF
+                </div>
+                <div class="hero-team-owner">@${esc(t.owner_name)}</div>
               </div>
-              <div class="hero-team-meta">
-                ${esc(subOwner)}${t.rank ? `#${t.rank} · ` : ""}${fmtRecord(t.wins, t.losses, t.ties)}${streakHtml} · ${fmt(t.fpts, 1)} PF
-              </div>
+            </div>
+
+            <div class="hero-status-counts">
+              ${t.totals.active_count > 0 ? `<span class="pill pill-live"><span class="pulse-dot"></span> ${t.totals.active_count} Active</span>` : ""}
+              ${t.totals.pre_count > 0 ? `<span class="pill">${t.totals.pre_count} Yet to Play</span>` : ""}
+              <span class="pill">${t.totals.post_count} Final</span>
             </div>
           </div>
 
-          <div class="hero-score-strip">
-            <div class="metric-box primary">
-              <div class="metric-label">Actual</div>
-              <div class="metric-value">${fmt(t.totals.actual)}</div>
-              <div class="metric-sub delta-flat">Rem: ${fmt(t.totals.rem_proj)}</div>
+          <div class="hero-score-col">
+            <div class="hero-actual" title="Actual score">${fmt(t.totals.actual)}</div>
+            <div class="hero-proj-row">
+              <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game">${delta.text}</span>
+              <span class="hero-live" title="Live projection">${fmt(t.totals.live_proj)}</span>
             </div>
-            <div class="metric-box">
-              <div class="metric-label">Live Proj</div>
-              <div class="metric-value" style="color:var(--accent);">${fmt(t.totals.live_proj)}</div>
-              <div class="metric-sub ${delta.textCls}">${delta.text} vs Pre</div>
-            </div>
-          </div>
-
-          <div class="hero-status-counts">
-            ${t.totals.active_count > 0 ? `<span class="pill pill-live"><span class="pulse-dot"></span> ${t.totals.active_count} Active</span>` : ""}
-            ${t.totals.pre_count > 0 ? `<span class="pill">${t.totals.pre_count} Yet to Play</span>` : ""}
-            <span class="pill">${t.totals.post_count} Final</span>
           </div>
         </div>
       `;
@@ -468,19 +473,18 @@
           ${renderHeroTeam(t1, "left")}
           <div class="hero-vs">
             <span class="vs-badge">VS</span>
-            ${lg.is_best_ball ? `<span class="pill pill-bestball">Optimal</span>` : ""}
           </div>
           ${renderHeroTeam(t2, "right")}
         </div>
         ${t1 && t2 ? `
           <div class="hero-win-wrap">
-            <div class="hero-win-labels">
-              <span style="color:var(--team-a);">${esc(t1.team_name)} · ${winA.toFixed(1)}% Win Prob</span>
-              <span style="color:var(--team-b);">${winB.toFixed(1)}% · ${esc(t2.team_name)}</span>
-            </div>
-            <div class="hero-win-bar">
-              <div class="win-bar-a" style="width:${winA}%"></div>
-              <div class="win-bar-b" style="width:${winB}%"></div>
+            <div class="hero-win-row">
+              <span class="hero-win-pct" style="color:var(--team-a);">${winA.toFixed(1)}%</span>
+              <div class="hero-win-bar">
+                <div class="win-bar-a" style="width:${winA}%"></div>
+                <div class="win-bar-b" style="width:${winB}%"></div>
+              </div>
+              <span class="hero-win-pct" style="color:var(--team-b);">${winB.toFixed(1)}%</span>
             </div>
           </div>
         ` : ""}
@@ -664,6 +668,13 @@
       applyTheme(current === "dark" ? "light" : "dark");
     });
   }
+
+  document.addEventListener("click", (e) => {
+    if (state.leagueMenuOpen && leagueSwitcherWrapEl && !leagueSwitcherWrapEl.contains(e.target)) {
+      state.leagueMenuOpen = false;
+      renderLeagues();
+    }
+  });
 
   // Boot
   async function init() {

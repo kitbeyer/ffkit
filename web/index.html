@@ -82,24 +82,32 @@
     </header>
 
     <div class="workspace">
-      <!-- Leftmost Pane: League Summary Tiles -->
+      <!-- Leftmost Pane: Current League Switcher + League Scoreboard -->
       <aside class="leagues-pane">
-        <div class="pane-header">
-          <h2>Leagues</h2>
-          <span id="leagues-count" class="count-pill">0</span>
+        <div id="league-switcher-wrap" class="league-switcher-wrap">
+          <div class="pane-header">
+            <h2>League</h2>
+            <span id="leagues-count" class="count-pill">0</span>
+          </div>
+          <div id="current-league-slot" class="current-league-slot"></div>
+          <div id="leagues-dropdown" class="leagues-dropdown hidden"></div>
         </div>
-        <div id="leagues-list" class="leagues-list"></div>
+
+        <div class="scoreboard-section">
+          <div class="pane-header">
+            <h2 id="scoreboard-heading">Scoreboard</h2>
+            <span id="matchups-count" class="count-pill">0</span>
+          </div>
+          <div id="matchups-strip" class="scoreboard-list"></div>
+        </div>
       </aside>
 
-      <!-- Right Pane: Matchup Summary Strip + Selected Matchup Detail -->
+      <!-- Right Pane: Active League Bar + Selected Matchup Detail -->
       <main class="main-pane">
-        <section class="matchups-strip-section">
-          <div class="strip-header">
-            <div id="active-league-title" class="active-league-title">Select a league</div>
-            <div id="active-league-badges" class="badge-row"></div>
-          </div>
-          <div id="matchups-strip" class="matchups-strip"></div>
-        </section>
+        <div class="detail-topbar">
+          <div id="active-league-title" class="active-league-title">Select a league</div>
+          <div id="active-league-badges" class="badge-row"></div>
+        </div>
 
         <section id="matchup-detail" class="matchup-detail">
           <div class="empty-state">Select a league and matchup to inspect live scores and projections.</div>
