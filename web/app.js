@@ -1,6 +1,7 @@
 (() => {
   const STORAGE_KEY = "ffkit_sleeper_user";
   const THEME_KEY = "ffkit_theme";
+  const ODDS_KEY = "ffkit_show_odds";
 
   const state = {
     user: null,
@@ -15,6 +16,7 @@
     refreshTimer: null,
     benchExpanded: true,
     leagueMenuOpen: false,
+    showOdds: true,
   };
 
   // DOM Elements
@@ -42,6 +44,7 @@
   const currentLeagueSlotEl = document.getElementById("current-league-slot");
   const leaguesDropdownEl = document.getElementById("leagues-dropdown");
   const scoreboardHeadingEl = document.getElementById("scoreboard-heading");
+  const oddsToggleBtn = document.getElementById("odds-toggle-btn");
   const matchupsCountEl = document.getElementById("matchups-count");
   const activeLeagueTitleEl = document.getElementById("active-league-title");
   const activeLeagueBadgesEl = document.getElementById("active-league-badges");
@@ -337,7 +340,35 @@
         const winA = t1 ? t1.win_prob : 50;
         const winB = t2 ? t2.win_prob : 50;
 
-        const renderScoreboardRow = (t) => {
+        const proj1 = t1?.totals?.live_proj ?? 0;
+        const proj2 = t2?.totals?.live_proj ?? 0;
+        const hasBoth = Boolean(t1 && t2);
+        const hasPlayersToPlay = hasBoth && (
+          (t1.totals?.active_count || 0) +
+          (t1.totals?.pre_count || 0) +
+          (t2.totals?.active_count || 0) +
+          (t2.totals?.pre_count || 0) > 0
+        );
+        const showMatchupOdds = hasBoth && state.showOdds && hasPlayersToPlay;
+        const halfSpread = Math.round((proj1 - proj2) * 2) / 2;
+        const ouVal = Math.round((proj1 + proj2) * 2) / 2;
+        const ouText = `T:${ouVal.toFixed(1)}`;
+        let odds1 = "";
+        let odds2 = "";
+        if (showMatchupOdds) {
+          if (Math.abs(halfSpread) < 0.25) {
+            odds1 = "PK";
+            odds2 = ouText;
+          } else if (halfSpread > 0) {
+            odds1 = `-${halfSpread.toFixed(1)}`;
+            odds2 = ouText;
+          } else {
+            odds1 = ouText;
+            odds2 = `-${Math.abs(halfSpread).toFixed(1)}`;
+          }
+        }
+
+        const renderScoreboardRow = (t, oddsText, isSpread, teamIdx) => {
           if (!t) {
             return `<div class="sb-team-row"><div class="sb-team-id"><span class="sb-team-rec">BYE</span></div></div>`;
           }
@@ -354,14 +385,15 @@
                 <span class="sb-live" title="Live projection">${fmt(t.totals.live_proj, 1)}</span>
                 <span class="sb-actual" title="Actual score">${fmt(t.totals.actual)}</span>
               </div>
+              ${hasBoth && state.showOdds ? `<div class="sb-odds ${isSpread && showMatchupOdds ? "sb-odds-spread" : ""}" title="${showMatchupOdds ? (isSpread ? "Live point spread" : "Live over/under") : "No players remaining"}">${showMatchupOdds ? esc(oddsText) : (teamIdx === 1 ? "FINAL" : "")}</div>` : ""}
             </div>
           `;
         };
 
         return `
           <div class="scoreboard-card ${selected}" data-matchup-id="${m.matchup_id}">
-            ${renderScoreboardRow(t1)}
-            ${renderScoreboardRow(t2)}
+            ${renderScoreboardRow(t1, odds1, halfSpread >= 0, 1)}
+            ${renderScoreboardRow(t2, odds2, halfSpread < 0, 2)}
           </div>
         `;
       })
@@ -710,9 +742,27 @@
     }
   });
 
+  function applyOddsToggle(show) {
+    state.showOdds = Boolean(show);
+    localStorage.setItem(ODDS_KEY, state.showOdds ? "1" : "0");
+    if (oddsToggleBtn) {
+      oddsToggleBtn.classList.toggle("active", state.showOdds);
+      oddsToggleBtn.setAttribute("aria-pressed", String(state.showOdds));
+    }
+  }
+
+  if (oddsToggleBtn) {
+    oddsToggleBtn.addEventListener("click", () => {
+      applyOddsToggle(!state.showOdds);
+      renderMatchupStrip();
+    });
+  }
+
   // Boot
   async function init() {
     applyTheme(localStorage.getItem(THEME_KEY) || "light");
+    const savedOdds = localStorage.getItem(ODDS_KEY);
+    applyOddsToggle(savedOdds === null ? true : savedOdds === "1");
     try {
       const nflState = await fetchJson("/api/nfl-state");
       state.nflState = nflState;

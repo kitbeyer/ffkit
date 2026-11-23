@@ -398,7 +398,7 @@ html, body {
 
 /* Leftmost Pane: Current League + Scoreboard */
 .leagues-pane {
-  width: 340px;
+  width: 375px;
   flex-shrink: 0;
   background: var(--bg-panel);
   border-right: 1px solid var(--border);
@@ -437,6 +437,37 @@ html, body {
   padding: 2px 8px;
   border-radius: 999px;
   font-family: var(--font-mono);
+}
+
+.pane-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-chip {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.btn-chip.active {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: var(--sky-text);
 }
 
 .current-league-slot {
@@ -690,6 +721,13 @@ html, body {
   flex: 1;
 }
 
+.sb-team-name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
 .sb-team-name {
   font-size: 12.5px;
   font-weight: 700;
@@ -697,6 +735,19 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sb-win-badge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  line-height: 1.2;
+  background: var(--green-soft);
+  color: var(--green-text);
+  border: 1px solid var(--green-border);
 }
 
 .sb-team-rec {
@@ -729,8 +780,26 @@ html, body {
   font-size: 18px;
   font-weight: 800;
   color: var(--text-primary);
-  min-width: 62px;
+  min-width: 60px;
   text-align: right;
+}
+
+.sb-odds {
+  width: 54px;
+  flex-shrink: 0;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sb-odds-spread {
+  color: var(--text-secondary);
+  font-weight: 700;
 }
 
 .tile-status-mid {
