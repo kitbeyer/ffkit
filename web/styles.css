@@ -1245,19 +1245,236 @@ html, body {
 /* Responsive */
 @media (max-width: 1080px) {
   .leagues-pane { width: 250px; }
-  .lineup-row { grid-template-columns: 1fr; }
-  .slot-center { justify-content: flex-start; padding: 3px 10px; }
-  .player-card.right, .player-card.right .player-main { flex-direction: row; text-align: left; }
-  .player-card.right .player-name-row, .player-card.right .player-sub { justify-content: flex-start; }
-  .player-card.right .player-scores { align-items: flex-end; }
-  .player-card.right .score-row-bottom { flex-direction: row; }
+  .lineup-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+  .slot-center {
+    order: -1;
+    justify-content: flex-start;
+    padding: 3px 10px;
+    font-size: 10px;
+  }
+  .player-card.right,
+  .player-card.right .player-main {
+    flex-direction: row;
+    text-align: left;
+  }
+  .player-card.right .player-name-row,
+  .player-card.right .player-sub {
+    justify-content: flex-start;
+  }
+  .player-card.right .player-scores {
+    align-items: flex-end;
+  }
+  .player-card.right .score-row-bottom {
+    flex-direction: row;
+  }
+  .player-card.right.active-player {
+    background: var(--active-card-bg-left);
+    box-shadow: inset 3px 0 0 var(--green);
+  }
 }
 
-@media (max-width: 760px) {
-  .workspace { flex-direction: column; overflow-y: auto; }
-  .leagues-pane { width: 100%; max-height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
-  .hero-teams { grid-template-columns: 1fr; }
-  .hero-team.right { align-items: flex-start; text-align: left; }
-  .hero-team.right .hero-team-id { flex-direction: row; }
-  .hero-team.right .hero-score-strip { justify-content: flex-start; }
+@media (max-width: 768px) {
+  .app-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .topbar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .topbar-right {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .control-group label {
+    display: none;
+  }
+
+  .btn-secondary,
+  .btn-toggle,
+  .select-compact {
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+
+  .last-updated {
+    margin-left: auto;
+    min-width: 0;
+  }
+
+  .workspace {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .leagues-pane {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pane-header {
+    padding: 9px 12px;
+  }
+
+  .leagues-list {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 8px 12px 10px;
+    gap: 8px;
+  }
+
+  .league-tile {
+    min-width: 225px;
+    max-width: 245px;
+    flex-shrink: 0;
+    padding: 10px;
+    scroll-snap-align: start;
+  }
+
+  .main-pane {
+    overflow: visible;
+  }
+
+  .matchups-strip-section {
+    padding: 10px 12px 12px;
+  }
+
+  .active-league-title {
+    font-size: 14px;
+  }
+
+  .matchups-strip {
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .matchup-tile {
+    width: 248px;
+    scroll-snap-align: start;
+  }
+
+  .matchup-detail {
+    overflow: visible;
+    padding: 12px 12px 36px;
+  }
+
+  .hero-card {
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  .hero-teams {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .hero-vs {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .hero-team.right {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .hero-team.right .hero-team-id {
+    flex-direction: row;
+  }
+
+  .hero-team.right .hero-score-strip {
+    justify-content: flex-start;
+  }
+
+  .hero-score-strip {
+    width: 100%;
+  }
+
+  .metric-box {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+  }
+
+  .metric-value {
+    font-size: 18px;
+  }
+
+  .avatar-lg {
+    width: 42px;
+    height: 42px;
+  }
+
+  .hero-team-name {
+    font-size: 15.5px;
+  }
+
+  .hero-win-labels {
+    font-size: 11px;
+    gap: 8px;
+  }
+
+  .section-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .player-card {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .player-headshot {
+    width: 32px;
+    height: 32px;
+  }
+
+  .player-name {
+    font-size: 12.5px;
+  }
+
+  .score-actual {
+    font-size: 15px;
+  }
+
+  .score-live {
+    font-size: 12.5px;
+  }
+
+  .proj-bar-track {
+    width: 86px;
+  }
+}
+
+@media (max-width: 540px) {
+  .auth-card {
+    padding: 22px 18px;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
+
+  .last-updated {
+    display: none;
+  }
 }
