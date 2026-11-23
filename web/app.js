@@ -299,6 +299,7 @@
 
         const renderTeamRow = (t) => {
           if (!t) return "";
+          const delta = fmtDelta(t.totals.delta_vs_pregame);
           return `
             <div class="tile-team-row">
               <div class="tile-team-id">
@@ -310,7 +311,7 @@
               </div>
               <div class="tile-team-scores">
                 <div class="tile-actual">${fmt(t.totals.actual)}</div>
-                <div class="tile-projs">L ${fmt(t.totals.live_proj, 1)} · P ${fmt(t.totals.pregame_proj, 1)}</div>
+                <div class="tile-projs">Proj ${fmt(t.totals.live_proj, 1)} <span class="${delta.textCls}">(${delta.text})</span></div>
               </div>
             </div>
           `;
@@ -397,11 +398,6 @@
               <div class="metric-value" style="color:var(--accent);">${fmt(t.totals.live_proj)}</div>
               <div class="metric-sub ${delta.textCls}">${delta.text} vs Pre</div>
             </div>
-            <div class="metric-box">
-              <div class="metric-label">Pre-Game</div>
-              <div class="metric-value" style="color:var(--text-secondary);">${fmt(t.totals.pregame_proj)}</div>
-              <div class="metric-sub delta-flat">Baseline</div>
-            </div>
           </div>
 
           <div class="hero-status-counts">
@@ -476,7 +472,7 @@
 
       <div class="section-bar">
         <h3>${lg.is_best_ball ? "Optimal Starters (Max Live Projection)" : "Starters"}</h3>
-        <span style="font-size:11px;color:var(--text-muted);">Showing Actual · Live Proj · Pre-Game Proj · Δ vs Pre-Game</span>
+        <span style="font-size:11px;color:var(--text-muted);">Showing Actual · Live Proj · +/- vs Pre-Game</span>
       </div>
       <div class="lineup-grid">
         ${starterRowsHtml.join("")}
@@ -569,13 +565,12 @@
         <div class="player-scores">
           <div class="score-row-top">
             <span class="score-actual" title="Actual points">${fmt(p.actual)}</span>
-            <span class="score-live" title="Live projection">L ${fmt(p.live_proj)}</span>
-          </div>
-          <div class="score-row-bottom">
-            <span title="Pre-game projection">Pre ${fmt(p.pregame)}</span>
             <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game projection">${delta.text}</span>
           </div>
-          <div class="proj-bar-track" title="Actual (${fmt(p.actual)}) vs Live (${fmt(p.live_proj)}) vs Pre (${fmt(p.pregame)})">
+          <div class="score-row-bottom">
+            <span class="score-live" title="Current live projection">Proj ${fmt(p.live_proj)}</span>
+          </div>
+          <div class="proj-bar-track" title="Actual (${fmt(p.actual)}) vs Live Proj (${fmt(p.live_proj)})">
             <div class="proj-bar-live" style="width:${livePct.toFixed(1)}%"></div>
             <div class="proj-bar-actual" style="width:${actualPct.toFixed(1)}%"></div>
           </div>
