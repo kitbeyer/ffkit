@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FFKit · Sleeper Live Scoreboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- User Prompt Modal / Landing Screen -->
+  <div id="auth-overlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="brand-icon">🏈</div>
+        <div>
+          <h1>FFKit Live</h1>
+          <p class="auth-subtitle">Sleeper Live Scoreboard &amp; Best Ball Optimizer</p>
+        </div>
+      </div>
+
+      <form id="user-form" class="auth-form">
+        <label for="user-input">Sleeper User ID or Username</label>
+        <div class="input-row">
+          <input
+            id="user-input"
+            type="text"
+            placeholder="e.g. kitshicker or 469286328278708224"
+            autocomplete="off"
+            required
+          />
+          <button type="submit" id="user-submit-btn" class="btn-primary">Load Leagues</button>
+        </div>
+        <div class="auth-meta-row">
+          <label class="inline-label" for="auth-season">Season</label>
+          <select id="auth-season" class="select-compact"></select>
+        </div>
+        <div id="auth-error" class="auth-error hidden"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div id="app-shell" class="app-shell hidden">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-compact">
+          <span class="brand-dot"></span>
+          <span class="brand-title">FFKit Live</span>
+        </div>
+        <div id="user-chip" class="user-chip" title="Click to switch Sleeper user">
+          <img id="user-avatar" class="avatar-xs hidden" alt="" />
+          <div id="user-initials" class="avatar-xs avatar-fallback"></div>
+          <span id="user-display-name"></span>
+          <span class="chip-action">Switch</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="control-group">
+          <label for="season-select">Season</label>
+          <select id="season-select" class="select-compact"></select>
+        </div>
+        <div class="control-group">
+          <label for="week-select">Week</label>
+          <select id="week-select" class="select-compact"></select>
+        </div>
+        <button id="auto-refresh-btn" class="btn-toggle active" title="Auto-refresh every 30 seconds">
+          <span class="pulse-dot"></span>
+          <span>Live 30s</span>
+        </button>
+        <button id="refresh-btn" class="btn-secondary" title="Refresh scores &amp; projections now">
+          ↻ Refresh
+        </button>
+        <span id="last-updated" class="last-updated"></span>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <!-- Leftmost Pane: League Summary Tiles -->
+      <aside class="leagues-pane">
+        <div class="pane-header">
+          <h2>Leagues</h2>
+          <span id="leagues-count" class="count-pill">0</span>
+        </div>
+        <div id="leagues-list" class="leagues-list"></div>
+      </aside>
+
+      <!-- Right Pane: Matchup Summary Strip + Selected Matchup Detail -->
+      <main class="main-pane">
+        <section class="matchups-strip-section">
+          <div class="strip-header">
+            <div id="active-league-title" class="active-league-title">Select a league</div>
+            <div id="active-league-badges" class="badge-row"></div>
+          </div>
+          <div id="matchups-strip" class="matchups-strip"></div>
+        </section>
+
+        <section id="matchup-detail" class="matchup-detail">
+          <div class="empty-state">Select a league and matchup to inspect live scores and projections.</div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

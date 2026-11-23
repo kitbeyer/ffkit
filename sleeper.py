@@ -13,7 +13,6 @@ LEAGUE_ID = '1322935618086379520'   # Beyer Dynasty Best Ball
 HOST_URL = 'https://api.sleeper.app/'
 
 
-
 def get_user_info(user):
 
     request_url = HOST_URL + f'v1/user/{user}'
@@ -64,11 +63,11 @@ def get_league_matchups(league_id, week):
 
 #user_json = get_user_info('kitshicker')
 #user_leagues = get_user_leagues(user_id=USER_ID, sport=SPORT, season=SEASON)
-#league_json = get_league(LEAGUE_ID)
+# league_json = get_league(LEAGUE_ID)
 #rosters_json = get_league_rosters(LEAGUE_ID)
 # league_users_json = get_league_users(LEAGUE_ID)
-league_matchups_json = get_league_matchups(LEAGUE_ID, 11)
+# league_matchups_json = get_league_matchups(LEAGUE_ID, 11)
 
-print(json.dumps(league_matchups_json, indent=4))
+# print(json.dumps(league_json, indent=4))
 
 
