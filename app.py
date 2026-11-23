@@ -53,6 +53,10 @@ class ScoreboardHandler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
 
         try:
+            if path == "/api/health":
+                self._send_json({"status": "ok"})
+                return
+
             if path == "/api/nfl-state":
                 self._send_json(ls.get_nfl_state())
                 return
@@ -125,4 +129,5 @@ def run_server(host: str = "127.0.0.1", port: int = 8080) -> None:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8080"))
-    run_server(port=port)
+    host = os.environ.get("HOST", "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1")
+    run_server(host=host, port=port)

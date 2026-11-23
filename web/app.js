@@ -1,5 +1,6 @@
 (() => {
   const STORAGE_KEY = "ffkit_sleeper_user";
+  const THEME_KEY = "ffkit_theme";
 
   const state = {
     user: null,
@@ -32,6 +33,7 @@
   const weekSelect = document.getElementById("week-select");
   const autoRefreshBtn = document.getElementById("auto-refresh-btn");
   const refreshBtn = document.getElementById("refresh-btn");
+  const themeToggleBtn = document.getElementById("theme-toggle-btn");
   const lastUpdatedEl = document.getElementById("last-updated");
 
   const leaguesCountEl = document.getElementById("leagues-count");
@@ -297,21 +299,30 @@
         const winA = t1 ? t1.win_prob : 50;
         const winB = t2 ? t2.win_prob : 50;
 
-        const renderTeamRow = (t) => {
-          if (!t) return "";
+        const renderTeamHeader = (t, side) => {
+          if (!t) {
+            return `<div class="tile-team-col ${side}"><div class="tile-team-rec">BYE</div></div>`;
+          }
+          return `
+            <div class="tile-team-col ${side}">
+              ${renderAvatar(t.avatar_url, t.team_name, "avatar-xs")}
+              <div class="tile-team-meta">
+                <div class="tile-team-name" title="${esc(t.team_name)}">${esc(t.team_name)}</div>
+                <div class="tile-team-rec">${fmtRecord(t.wins, t.losses, t.ties)}${t.rank ? ` · #${t.rank}` : ""}</div>
+              </div>
+            </div>
+          `;
+        };
+
+        const renderTeamScore = (t, side) => {
+          if (!t) return `<div class="tile-score-col ${side}"></div>`;
           const delta = fmtDelta(t.totals.delta_vs_pregame);
           return `
-            <div class="tile-team-row">
-              <div class="tile-team-id">
-                ${renderAvatar(t.avatar_url, t.team_name, "avatar-xs")}
-                <div style="min-width:0;">
-                  <div class="tile-team-name" title="${esc(t.team_name)}">${esc(t.team_name)}</div>
-                  <div class="tile-team-rec">${fmtRecord(t.wins, t.losses, t.ties)}${t.rank ? ` · #${t.rank}` : ""}</div>
-                </div>
-              </div>
-              <div class="tile-team-scores">
-                <div class="tile-actual">${fmt(t.totals.actual)}</div>
-                <div class="tile-projs">Proj ${fmt(t.totals.live_proj, 1)} <span class="${delta.textCls}">(${delta.text})</span></div>
+            <div class="tile-score-col ${side}">
+              <div class="tile-actual" title="Actual score">${fmt(t.totals.actual)}</div>
+              <div class="tile-proj-row">
+                <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game">${delta.text}</span>
+                <span class="tile-live" title="Live projection">${fmt(t.totals.live_proj, 1)}</span>
               </div>
             </div>
           `;
@@ -319,15 +330,15 @@
 
         return `
           <div class="matchup-tile ${selected}" data-matchup-id="${m.matchup_id}">
-            <div class="matchup-tile-head">
-              <span>Matchup ${m.matchup_id}</span>
-              <span style="display:flex;gap:5px;align-items:center;">
-                ${anyLive ? `<span class="pulse-dot" title="Active players in-game"></span>` : ""}
-                ${m.is_user_matchup ? `<span class="pill pill-user">You</span>` : ""}
-              </span>
+            <div class="tile-teams-top">
+              ${renderTeamHeader(t1, "left")}
+              ${renderTeamHeader(t2, "right")}
             </div>
-            ${renderTeamRow(t1)}
-            ${renderTeamRow(t2)}
+            <div class="tile-scores-mid">
+              ${renderTeamScore(t1, "left")}
+              <div class="tile-divider"></div>
+              ${renderTeamScore(t2, "right")}
+            </div>
             ${t1 && t2 ? `
               <div class="win-bar">
                 <div class="win-bar-a" style="width:${winA}%"></div>
@@ -335,6 +346,10 @@
               </div>
               <div class="win-bar-labels">
                 <span>${winA.toFixed(1)}%</span>
+                <span class="tile-status-mid">
+                  ${anyLive ? `<span class="pulse-dot" title="Active players in-game"></span>` : ""}
+                  ${m.is_user_matchup ? `<span class="pill pill-user">You</span>` : ""}
+                </span>
                 <span>${winB.toFixed(1)}%</span>
               </div>
             ` : ""}
@@ -418,7 +433,8 @@
       const p1 = s1[i] || null;
       const p2 = s2[i] || null;
       const slot = p1?.slot || p2?.slot || lg.starter_slots[i] || "ST";
-      const slotCls = slot === "SUPER_FLEX" ? "slot-sflex" : slot.includes("FLEX") ? "slot-flex" : "";
+      const slotKey = slot.toUpperCase().replace(/[^A-Z0-9_]/g, "");
+      const slotCls = `slot-${slotKey}`;
       starterRowsHtml.push(`
         <div class="lineup-row">
           ${renderPlayerCard(p1, "left")}
@@ -504,7 +520,13 @@
       return `<div class="player-card empty-slot ${side}">—</div>`;
     }
 
-    const activeCls = p.is_active ? "active-player" : "";
+    const isInactive = Boolean(p.inj_status && ["Out", "IR", "PUP", "COV", "Sus", "NA"].includes(p.inj_status));
+    let stateCls = "";
+    if (p.is_active) {
+      stateCls = "active-player";
+    } else if (p.game_state === "post" || p.game_state === "bye" || isInactive) {
+      stateCls = "post-player";
+    }
     const delta = fmtDelta(p.delta_vs_pregame);
     const maxScale = Math.max(p.pregame, p.live_proj, p.actual, 1);
     const actualPct = Math.max(0, Math.min(100, (p.actual / maxScale) * 100));
@@ -516,19 +538,19 @@
         .filter(Boolean)
         .join(" · ");
       statusHtml = `<span class="pill pill-live"><span class="pulse-dot"></span> LIVE</span><span class="game-clock-live">${esc(clockText)}</span>`;
-    } else if (p.inj_status && ["Out", "IR", "PUP", "COV", "Sus", "NA"].includes(p.inj_status)) {
+    } else if (isInactive) {
       statusHtml = `<span class="pill pill-danger">${esc(p.inj_status)}</span>`;
     } else if (p.game_state === "post") {
       const scoreText = p.game_score && p.opp_abbr ? `Final (${p.raw_team} ${p.game_score} ${p.opp_abbr})` : "Final";
       statusHtml = `<span class="game-clock-muted">${esc(scoreText)}</span>`;
     } else if (p.game_state === "pre") {
-      const preText = p.opp_abbr ? `vs ${p.opp_abbr}${p.game_detail ? ` · ${p.game_detail}` : ""}` : (p.game_detail || "Pre");
+      const preText = p.opp_abbr ? `vs ${p.opp_abbr}${p.game_detail ? ` · ${p.game_detail}` : ""}` : (p.game_detail || "");
       statusHtml = `<span class="game-clock-muted">${esc(preText)}</span>`;
     } else {
       statusHtml = `<span class="game-clock-muted">BYE</span>`;
     }
 
-    const injBadge = p.inj_status && !["Out", "IR", "PUP", "COV", "Sus", "NA"].includes(p.inj_status)
+    const injBadge = p.inj_status && !isInactive
       ? `<span class="pill pill-warn">${esc(p.inj_status)}</span>`
       : "";
 
@@ -539,7 +561,7 @@
     const fb = initials(p.name);
 
     return `
-      <div class="player-card ${side} ${activeCls}">
+      <div class="player-card ${side} ${stateCls}">
         <div class="player-main">
           <img
             class="player-headshot"
@@ -565,12 +587,12 @@
         <div class="player-scores">
           <div class="score-row-top">
             <span class="score-actual" title="Actual points">${fmt(p.actual)}</span>
-            <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game projection">${delta.text}</span>
           </div>
           <div class="score-row-bottom">
-            <span class="score-live" title="Current live projection">Proj ${fmt(p.live_proj)}</span>
+            <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game projection">${delta.text}</span>
+            <span class="score-live" title="Current live projection">${fmt(p.live_proj)}</span>
           </div>
-          <div class="proj-bar-track" title="Actual (${fmt(p.actual)}) vs Live Proj (${fmt(p.live_proj)})">
+          <div class="proj-bar-track" title="Actual (${fmt(p.actual)}) vs Live (${fmt(p.live_proj)})">
             <div class="proj-bar-live" style="width:${livePct.toFixed(1)}%"></div>
             <div class="proj-bar-actual" style="width:${actualPct.toFixed(1)}%"></div>
           </div>
@@ -627,8 +649,25 @@
     }
   });
 
+  function applyTheme(theme) {
+    const next = theme === "light" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem(THEME_KEY, next);
+    if (themeToggleBtn) {
+      themeToggleBtn.textContent = next === "light" ? "🌙 Dark" : "☀️ Light";
+    }
+  }
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      applyTheme(current === "dark" ? "light" : "dark");
+    });
+  }
+
   // Boot
   async function init() {
+    applyTheme(localStorage.getItem(THEME_KEY) || "dark");
     try {
       const nflState = await fetchJson("/api/nfl-state");
       state.nflState = nflState;
