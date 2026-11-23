@@ -617,8 +617,8 @@
             <div class="player-sub">
               <span class="pos-tag pos-${esc(p.pos)}">${esc(p.pos || "?")}</span>
               <span>${esc(p.raw_team || "FA")}</span>
-              ${statusHtml}
             </div>
+            ${statusHtml ? `<div class="player-game-row">${statusHtml}</div>` : ""}
           </div>
         </div>
 
