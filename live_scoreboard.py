@@ -34,6 +34,7 @@ SLOT_ELIGIBILITY: dict[str, set] = {
 SLEEPER_URL = 'https://api.sleeper.app/'
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def load_or_fetch_cache(filename: str, url: str, params: Any = None, ttl_seconds: int = 86400) -> Any:
     """Caches large or static API responses locally (and in memory) to allow fast live polling."""
@@ -62,10 +63,19 @@ def load_or_fetch_cache(filename: str, url: str, params: Any = None, ttl_seconds
     return data
 
 
-def get_nfl_game_clocks() -> dict[str, dict[str, Any]]:
-    """Fetches live NFL game states, clocks, and team scores from ESPN's public scoreboard."""
+def get_nfl_game_clocks(
+    season: int | None = None,
+    week: int | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Fetches NFL game states, clocks, and team scores from ESPN's public scoreboard for a given season/week."""
     url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-    resp = requests.get(url, timeout=10)
+    params: dict[str, Any] = {}
+    if season is not None:
+        params["dates"] = season
+    if week is not None:
+        params["seasontype"] = 2
+        params["week"] = week
+    resp = requests.get(url, params=params or None, timeout=10)
     resp.raise_for_status()
     data = resp.json()
 
@@ -441,12 +451,12 @@ def _serialize_player_eval(p_eval: dict[str, Any], slot: str = "") -> dict[str, 
     return out
 
 
-def get_nfl_state() -> dict[str, Any]:
+def get_nfl_state(ttl: int=300) -> dict[str, Any]:
     """Fetches current NFL season/week state from Sleeper."""
     data = load_or_fetch_cache(
         "nfl_state.json",
         SLEEPER_URL + "v1/state/nfl",
-        ttl_seconds=300,
+        ttl_seconds=ttl,
     )
     return {
         "season": int(data.get("season") or 2026),
@@ -597,7 +607,7 @@ def get_league_scoreboard(
         f_users = pool.submit(lambda: requests.get(SLEEPER_URL + f"v1/league/{league_id}/users", timeout=10).json())
         f_rosters = pool.submit(lambda: requests.get(SLEEPER_URL + f"v1/league/{league_id}/rosters", timeout=10).json())
         f_matchups = pool.submit(lambda: requests.get(SLEEPER_URL + f"v1/league/{league_id}/matchups/{week}", timeout=10).json())
-        f_clocks = pool.submit(get_nfl_game_clocks)
+        f_clocks = pool.submit(get_nfl_game_clocks, season, week)
 
         users = f_users.result() or []
         rosters = f_rosters.result() or []
@@ -802,7 +812,7 @@ def run_live_scoreboard(league_id: str, season: int, week: int, refresh_cache: b
     logger.debug("Fetching matchups...")
     matchups = requests.get(SLEEPER_URL + f"v1/league/{league_id}/matchups/{week}", timeout=10).json()
     logger.debug("Fetching game_clocks...")
-    game_clocks = get_nfl_game_clocks()
+    game_clocks = get_nfl_game_clocks(season=season, week=week)
 
     user_map = {u["user_id"]: u.get("display_name", "Unknown") for u in users}
     roster_owner = {r["roster_id"]: user_map.get(r.get("owner_id"), f"Team {r['roster_id']}") for r in rosters}
@@ -912,8 +922,11 @@ def run_live_scoreboard(league_id: str, season: int, week: int, refresh_cache: b
 if __name__ == "__main__":
     
     logger.setLevel(logging.DEBUG)
+
+    nfl_state = get_nfl_state(ttl=0)
+    print(nfl_state)
     
-    LEAGUE_ID = "1322935618086379520"
-    SEASON = 2026
-    WEEK = 11
-    run_live_scoreboard(LEAGUE_ID, SEASON, WEEK, refresh_cache=False)
+    # LEAGUE_ID = "1322935618086379520"
+    # SEASON = 2026
+    # WEEK = 12
+    # run_live_scoreboard(LEAGUE_ID, SEASON, WEEK, refresh_cache=False)

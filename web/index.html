@@ -45,39 +45,49 @@
   <!-- Main App Shell -->
   <div id="app-shell" class="app-shell hidden">
     <header class="topbar">
-      <div class="topbar-left">
-        <div class="brand-compact">
-          <span class="brand-dot"></span>
-          <span class="brand-title">FFKit Live</span>
-        </div>
-        <div id="user-chip" class="user-chip" title="Click to switch Sleeper user">
-          <img id="user-avatar" class="avatar-xs hidden" alt="" />
-          <div id="user-initials" class="avatar-xs avatar-fallback"></div>
-          <span id="user-display-name"></span>
-          <span class="chip-action">Switch</span>
-        </div>
+      <div class="brand-compact">
+        <span class="brand-dot"></span>
+        <span class="brand-title">FFKit Live</span>
       </div>
 
-      <div class="topbar-right">
+      <div class="topbar-controls">
         <div class="control-group">
           <label for="season-select">Season</label>
           <select id="season-select" class="select-compact"></select>
         </div>
         <div class="control-group">
           <label for="week-select">Week</label>
-          <select id="week-select" class="select-compact"></select>
+          <div class="week-stepper">
+            <button type="button" id="week-prev-btn" class="week-nav-btn" title="Previous week" aria-label="Previous week">‹</button>
+            <select id="week-select" class="select-compact week-select-inline" aria-label="Select week"></select>
+            <button type="button" id="week-next-btn" class="week-nav-btn" title="Next week" aria-label="Next week">›</button>
+          </div>
         </div>
-        <button id="auto-refresh-btn" class="btn-toggle active" title="Auto-refresh every 30 seconds">
+        <button id="auto-refresh-btn" class="btn-toggle" title="Auto-refresh every 30 seconds" aria-label="Toggle 30s live updates">
           <span class="pulse-dot"></span>
-          <span>Live 30s</span>
+          <span class="btn-label">Live 30s</span>
         </button>
-        <button id="refresh-btn" class="btn-secondary" title="Refresh scores &amp; projections now">
-          ↻ Refresh
-        </button>
-        <button id="theme-toggle-btn" class="btn-secondary" title="Toggle light / dark mode">
-          🌙 Dark
+        <button id="refresh-btn" class="btn-secondary" title="Refresh scores &amp; projections now" aria-label="Refresh">
+          <svg class="btn-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            <polyline points="21 3 21 9 15 9" />
+          </svg>
+          <span class="btn-label">Refresh</span>
         </button>
         <span id="last-updated" class="last-updated"></span>
+      </div>
+
+      <div class="topbar-user-actions">
+        <button id="theme-toggle-btn" class="btn-secondary" title="Toggle light / dark mode" aria-label="Toggle light or dark mode">
+          <span class="btn-icon">🌙</span>
+          <span class="btn-label">Dark</span>
+        </button>
+        <div id="user-chip" class="user-chip" title="Click to switch Sleeper user">
+          <img id="user-avatar" class="avatar-xs hidden" alt="" />
+          <div id="user-initials" class="avatar-xs avatar-fallback"></div>
+          <span id="user-display-name"></span>
+          <span class="chip-action">Switch</span>
+        </div>
       </div>
     </header>
 

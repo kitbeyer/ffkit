@@ -12,7 +12,8 @@
     selectedLeagueId: null,
     scoreboard: null,
     selectedMatchupId: null,
-    autoRefresh: true,
+    autoRefresh: false,
+    autoRefreshUserOverride: false,
     refreshTimer: null,
     benchExpanded: true,
     leagueMenuOpen: false,
@@ -34,6 +35,8 @@
   const userDisplayName = document.getElementById("user-display-name");
   const seasonSelect = document.getElementById("season-select");
   const weekSelect = document.getElementById("week-select");
+  const weekPrevBtn = document.getElementById("week-prev-btn");
+  const weekNextBtn = document.getElementById("week-next-btn");
   const autoRefreshBtn = document.getElementById("auto-refresh-btn");
   const refreshBtn = document.getElementById("refresh-btn");
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
@@ -66,8 +69,58 @@
     return String(name || "?").slice(0, 2).toUpperCase();
   }
 
+  function abbreviateFirstName(fullName, pos) {
+    const clean = String(fullName || "").trim();
+    if (!clean || pos === "DEF") return clean;
+    const parts = clean.split(/\s+/);
+    if (parts.length < 2) return clean;
+    return `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
+  }
+
+  function fitPlayerNames() {
+    const els = matchupDetailEl.querySelectorAll(".player-name[data-full-name]");
+    els.forEach((el) => {
+      const fullName = el.getAttribute("data-full-name") || "";
+      const pos = el.getAttribute("data-pos") || "";
+      el.style.fontSize = "";
+      el.textContent = fullName;
+
+      if (el.clientWidth <= 0) return;
+
+      if (el.scrollWidth > el.clientWidth + 1) {
+        const abbrev = abbreviateFirstName(fullName, pos);
+        if (abbrev !== fullName) {
+          el.textContent = abbrev;
+        }
+      }
+
+      if (el.scrollWidth > el.clientWidth + 1) {
+        let size = parseFloat(window.getComputedStyle(el).fontSize) || 12;
+        const minSize = 8.5;
+        while (el.scrollWidth > el.clientWidth + 1 && size > minSize) {
+          size = Math.max(minSize, size - 0.5);
+          el.style.fontSize = `${size}px`;
+        }
+      }
+    });
+  }
   function fmt(num, digits = 2) {
     return Number(num || 0).toFixed(digits);
+  }
+
+  function fmtTeamActual(t) {
+    const tot = t?.totals || {};
+    if ((tot.active_count || 0) === 0 && (tot.post_count || 0) === 0 && Math.abs(tot.actual || 0) < 0.005) {
+      return "—";
+    }
+    return fmt(tot.actual);
+  }
+
+  function fmtPlayerActual(p) {
+    if (p?.game_state === "pre" && Math.abs(p.actual || 0) < 0.005) {
+      return "—";
+    }
+    return fmt(p?.actual);
   }
 
   function fmtRecord(w, l, t) {
@@ -105,6 +158,23 @@
       weekOptions.push(`<option value="${w}" ${w === state.week ? "selected" : ""}>Week ${w}</option>`);
     }
     weekSelect.innerHTML = weekOptions.join("");
+    updateWeekNavButtons();
+  }
+
+  function updateWeekNavButtons() {
+    if (weekPrevBtn) weekPrevBtn.disabled = state.week <= 1;
+    if (weekNextBtn) weekNextBtn.disabled = state.week >= 18;
+  }
+
+  function setWeek(newWeek) {
+    const clamped = Math.max(1, Math.min(18, Number(newWeek)));
+    if (clamped === state.week) return;
+    state.week = clamped;
+    weekSelect.value = String(state.week);
+    updateWeekNavButtons();
+    if (state.selectedLeagueId) {
+      selectLeague(state.selectedLeagueId, false, true);
+    }
   }
 
   async function fetchJson(url) {
@@ -174,6 +244,7 @@
         if (!keepCurrent && target.current_leg) {
           state.week = target.current_leg;
           weekSelect.value = String(state.week);
+          updateWeekNavButtons();
         }
         await selectLeague(target.league_id, false);
       } else {
@@ -273,12 +344,12 @@
   }
 
   // Select a league and fetch its live scoreboard
-  async function selectLeague(leagueId, forceRefresh = false) {
+  async function selectLeague(leagueId, forceRefresh = false, resetMatchup = false) {
     const leagueChanged = state.selectedLeagueId !== leagueId;
     state.selectedLeagueId = leagueId;
     renderLeagues();
 
-    if (leagueChanged || !state.scoreboard) {
+    if (leagueChanged || resetMatchup || !state.scoreboard) {
       matchupsStripEl.innerHTML = `<div class="loading-state" style="padding: 14px;"><div class="spinner"></div></div>`;
       matchupDetailEl.innerHTML = `<div class="loading-state"><div class="spinner"></div><div>Loading live scores &amp; projections...</div></div>`;
     }
@@ -296,10 +367,22 @@
       const now = new Date();
       lastUpdatedEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-      // Pick matchup: preserve selection if same league & still exists, else user's matchup (sorted first)
+      // Pick matchup: preserve selection on refresh, else auto-select user's matchup (sorted first)
       const matchups = data.matchups || [];
-      const existing = !leagueChanged && matchups.find((m) => m.matchup_id === state.selectedMatchupId);
-      state.selectedMatchupId = existing ? existing.matchup_id : (matchups[0]?.matchup_id ?? null);
+      const userMatchup = matchups.find((m) => m.is_user_matchup);
+      const existing = !leagueChanged && !resetMatchup && matchups.find((m) => m.matchup_id === state.selectedMatchupId);
+      state.selectedMatchupId = existing ? existing.matchup_id : (userMatchup?.matchup_id ?? matchups[0]?.matchup_id ?? null);
+
+      // By default, enable 30s live updates only when games are currently being played
+      if (!state.autoRefreshUserOverride) {
+        const hasLiveGames = matchups.some((m) =>
+          (m.teams || []).some((t) =>
+            (t.totals?.active_count || 0) > 0 ||
+            (t.bench || []).some((p) => p.is_active)
+          )
+        );
+        setAutoRefresh(hasLiveGames);
+      }
 
       renderScoreboardHeader();
       renderMatchupStrip();
@@ -383,7 +466,7 @@
               </div>
               <div class="sb-team-scores">
                 <span class="sb-live" title="Live projection">${fmt(t.totals.live_proj, 1)}</span>
-                <span class="sb-actual" title="Actual score">${fmt(t.totals.actual)}</span>
+                <span class="sb-actual" title="Actual score">${fmtTeamActual(t)}</span>
               </div>
               ${hasBoth && state.showOdds ? `<div class="sb-odds ${isSpread && showMatchupOdds ? "sb-odds-spread" : ""}" title="${showMatchupOdds ? (isSpread ? "Live point spread" : "Live over/under") : "No players remaining"}">${showMatchupOdds ? esc(oddsText) : (teamIdx === 1 ? "FINAL" : "")}</div>` : ""}
             </div>
@@ -445,16 +528,10 @@
                 <div class="hero-team-owner">@${esc(t.owner_name)}</div>
               </div>
             </div>
-
-            ${t.totals.active_count > 0 ? `
-              <div class="hero-status-counts">
-                <span class="pill pill-live"><span class="pulse-dot"></span> ${t.totals.active_count} Active</span>
-              </div>
-            ` : ""}
           </div>
 
           <div class="hero-score-col">
-            <div class="hero-actual" title="Actual score">${fmt(t.totals.actual)}</div>
+            <div class="hero-actual" title="Actual score">${fmtTeamActual(t)}</div>
             <div class="hero-proj-row">
               <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game">${delta.text}</span>
               <span class="hero-live" title="Live projection">${fmt(t.totals.live_proj)}</span>
@@ -581,8 +658,13 @@
         state.benchExpanded = !state.benchExpanded;
         document.getElementById("bench-grid")?.classList.toggle("hidden", !state.benchExpanded);
         toggleBenchBtn.textContent = state.benchExpanded ? "Hide Bench" : "Show Bench";
+        if (state.benchExpanded) {
+          requestAnimationFrame(fitPlayerNames);
+        }
       });
     }
+
+    requestAnimationFrame(fitPlayerNames);
   }
 
   function renderPlayerCard(p, side) {
@@ -591,12 +673,21 @@
     }
 
     const isInactive = Boolean(p.inj_status && ["Out", "IR", "PUP", "COV", "Sus", "NA"].includes(p.inj_status));
-    let stateCls = "";
+    const isQuestionable = Boolean(p.inj_status && !isInactive);
+    const stateClasses = [];
     if (p.is_active) {
-      stateCls = "active-player";
+      stateClasses.push("active-player");
     } else if (p.game_state === "post" || p.game_state === "bye" || isInactive) {
-      stateCls = "post-player";
+      stateClasses.push("post-player");
     }
+    if (isInactive) {
+      stateClasses.push("status-out");
+    } else if (isQuestionable && !p.is_active) {
+      stateClasses.push("status-questionable");
+    } else if (p.game_state === "bye") {
+      stateClasses.push("status-bye");
+    }
+    const stateCls = stateClasses.join(" ");
     const delta = fmtDelta(p.delta_vs_pregame);
     const maxScale = Math.max(p.pregame, p.live_proj, p.actual, 1);
     const actualPct = Math.max(0, Math.min(100, (p.actual / maxScale) * 100));
@@ -620,8 +711,14 @@
       statusHtml = `<span class="game-clock-muted">BYE</span>`;
     }
 
+    const shortInjMap = {
+      Questionable: "Q",
+      Doubtful: "D",
+      Probable: "P",
+    };
+    const shortInj = shortInjMap[p.inj_status] || p.inj_status;
     const injBadge = p.inj_status && !isInactive
-      ? `<span class="pill pill-warn">${esc(p.inj_status)}</span>`
+      ? `<span class="pill pill-warn inj-pill" title="${esc(p.inj_status)}">${esc(shortInj)}</span>`
       : "";
 
     const blowoutBadge = p.b_mult < 1.0
@@ -642,7 +739,7 @@
           />
           <div class="player-info">
             <div class="player-name-row">
-              <span class="player-name" title="${esc(p.name)}">${esc(p.name)}</span>
+              <span class="player-name" data-full-name="${esc(p.name)}" data-pos="${esc(p.pos)}" title="${esc(p.name)}">${esc(p.name)}</span>
               ${injBadge}
               ${blowoutBadge}
             </div>
@@ -656,7 +753,7 @@
 
         <div class="player-scores">
           <div class="score-row-top">
-            <span class="score-actual" title="Actual points">${fmt(p.actual)}</span>
+            <span class="score-actual" title="Actual points">${fmtPlayerActual(p)}</span>
           </div>
           <div class="score-row-bottom">
             <span class="delta-chip ${delta.cls}" title="Live projection vs Pre-game projection">${delta.text}</span>
@@ -701,16 +798,29 @@
   });
 
   weekSelect.addEventListener("change", () => {
-    state.week = Number(weekSelect.value);
-    if (state.selectedLeagueId) {
-      selectLeague(state.selectedLeagueId, false);
-    }
+    setWeek(weekSelect.value);
   });
 
-  autoRefreshBtn.addEventListener("click", () => {
-    state.autoRefresh = !state.autoRefresh;
-    autoRefreshBtn.classList.toggle("active", state.autoRefresh);
+  if (weekPrevBtn) {
+    weekPrevBtn.addEventListener("click", () => setWeek(state.week - 1));
+  }
+
+  if (weekNextBtn) {
+    weekNextBtn.addEventListener("click", () => setWeek(state.week + 1));
+  }
+
+  function setAutoRefresh(enabled) {
+    state.autoRefresh = Boolean(enabled);
+    if (autoRefreshBtn) {
+      autoRefreshBtn.classList.toggle("active", state.autoRefresh);
+      autoRefreshBtn.setAttribute("aria-pressed", String(state.autoRefresh));
+    }
     setupAutoRefresh();
+  }
+
+  autoRefreshBtn.addEventListener("click", () => {
+    state.autoRefreshUserOverride = true;
+    setAutoRefresh(!state.autoRefresh);
   });
 
   refreshBtn.addEventListener("click", () => {
@@ -723,8 +833,10 @@
     const next = theme === "light" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
     localStorage.setItem(THEME_KEY, next);
+    const icon = next === "light" ? "🌙" : "☀️";
+    const label = next === "light" ? "Dark" : "Light";
     if (themeToggleBtn) {
-      themeToggleBtn.textContent = next === "light" ? "🌙 Dark" : "☀️ Light";
+      themeToggleBtn.innerHTML = `<span class="btn-icon">${icon}</span><span class="btn-label">${label}</span>`;
     }
   }
 
@@ -740,6 +852,12 @@
       state.leagueMenuOpen = false;
       renderLeagues();
     }
+  });
+
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fitPlayerNames, 100);
   });
 
   function applyOddsToggle(show) {
