@@ -5,17 +5,16 @@ import os
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 import requests
 
-import sleeper
-
 CACHE_DIR = "./sleeper_cache"
-_MEM_CACHE: Dict[str, Tuple[float, Any]] = {}
+_MEM_CACHE: dict[str, tuple[float, Any]] = {}
 TEAM_ABBR_MAP = {"JAC": "JAX", "WAS": "WSH"}
 INACTIVE_STATUSES = {"Out", "IR", "PUP", "COV", "Sus", "NA"}
 NON_STARTER_SLOTS = {"BN", "IR", "TAXI"}
-SLOT_ELIGIBILITY: Dict[str, set] = {
+SLOT_ELIGIBILITY: dict[str, set] = {
     "QB": {"QB"},
     "RB": {"RB"},
     "WR": {"WR"},
@@ -63,7 +62,7 @@ def load_or_fetch_cache(filename: str, url: str, params: Any = None, ttl_seconds
     return data
 
 
-def get_nfl_game_clocks() -> Dict[str, Dict[str, Any]]:
+def get_nfl_game_clocks() -> dict[str, dict[str, Any]]:
     """Fetches live NFL game states, clocks, and team scores from ESPN's public scoreboard."""
     url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
     resp = requests.get(url, timeout=10)
@@ -117,7 +116,7 @@ def get_nfl_game_clocks() -> Dict[str, Dict[str, Any]]:
     return clocks
 
 
-def get_blowout_multiplier(game_info: Dict[str, Any], position: str) -> float:
+def get_blowout_multiplier(game_info: dict[str, Any], position: str) -> float:
     """
     Applies a 4th-quarter blowout dampener based on score margin and player position.
     Returns a multiplier between 0.30 and 1.00.
@@ -147,7 +146,7 @@ def get_blowout_multiplier(game_info: Dict[str, Any], position: str) -> float:
     return 0.90
 
 
-def calculate_custom_points(stats: Dict[str, float], scoring: Dict[str, float]) -> float:
+def calculate_custom_points(stats: dict[str, float], scoring: dict[str, float]) -> float:
     """Calculates fantasy points using the league's custom scoring settings."""
     return sum(val * scoring[key] for key, val in stats.items() if key in scoring)
 
@@ -155,10 +154,10 @@ def calculate_custom_points(stats: Dict[str, float], scoring: Dict[str, float]) 
 def calculate_live_projection(
     pregame_proj: float,
     actual_pts: float,
-    game_info: Dict[str, Any],
+    game_info: dict[str, Any],
     injury_status: str,
     position: str,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """
     Returns (live_projection, remaining_projection, blowout_multiplier).
     """
@@ -189,7 +188,7 @@ def calculate_live_projection(
 
 def calculate_win_probability(
     proj_a: float, rem_a: float, proj_b: float, rem_b: float
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Computes live win probability using a normal distribution over remaining points."""
     diff = proj_a - proj_b
     combined_std_dev = math.sqrt((rem_a * 2.5) + (rem_b * 2.5))
@@ -207,7 +206,7 @@ def calculate_win_probability(
     return prob_a_pct, round(100.0 - prob_a_pct, 1)
 
 
-def _hungarian_min_cost(cost: List[List[int]]) -> List[int]:
+def _hungarian_min_cost(cost: list[list[int]]) -> list[int]:
     """
     Solves the rectangular linear assignment problem (minimization) using exact integer costs.
     cost is an n x m matrix with n <= m.
@@ -266,7 +265,7 @@ def _hungarian_min_cost(cost: List[List[int]]) -> List[int]:
     return assignment
 
 
-def get_player_positions(p_info: Dict[str, Any]) -> set:
+def get_player_positions(p_info: dict[str, Any]) -> set:
     """Returns the set of fantasy-eligible positions for a Sleeper player."""
     fantasy_positions = p_info.get("fantasy_positions")
     if fantasy_positions:
@@ -277,12 +276,12 @@ def get_player_positions(p_info: Dict[str, Any]) -> set:
 
 def evaluate_player(
     pid: str,
-    players: Dict[str, Any],
-    actual_map: Dict[str, float],
-    pregame_stats: Dict[str, Dict[str, float]],
-    scoring_settings: Dict[str, float],
-    game_clocks: Dict[str, Dict[str, Any]],
-) -> Dict[str, Any]:
+    players: dict[str, Any],
+    actual_map: dict[str, float],
+    pregame_stats: dict[str, dict[str, float]],
+    scoring_settings: dict[str, float],
+    game_clocks: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     """Computes live scoring and projection metadata for a single player."""
     p_info = players.get(pid, {})
     name = p_info.get("full_name") or f"{p_info.get('first_name', '')} {p_info.get('last_name', '')}".strip() or pid
@@ -343,9 +342,9 @@ def evaluate_player(
 
 
 def optimize_best_ball_lineup(
-    starter_slots: List[str],
-    player_evals: List[Dict[str, Any]],
-) -> List[Tuple[str, Dict[str, Any]]]:
+    starter_slots: list[str],
+    player_evals: list[dict[str, Any]],
+) -> list[tuple[str, dict[str, Any]]]:
     """
     Assigns eligible players to starter_slots to maximize total live_proj
     (breaking ties by higher actual points). Returns (slot, player_eval) pairs
@@ -360,10 +359,10 @@ def optimize_best_ball_lineup(
     ineligible_cost = 10**15
 
     # Columns: [0..num_players-1] are real players; [num_players..num_players+num_slots-1] are unfilled-slot dummies
-    cost_matrix: List[List[int]] = []
+    cost_matrix: list[list[int]] = []
     for slot in starter_slots:
         allowed_positions = SLOT_ELIGIBILITY.get(slot, {slot})
-        row: List[int] = []
+        row: list[int] = []
         for p in player_evals:
             if p["positions"] & allowed_positions:
                 score_int = round(p["live_proj"] * 100) * 100_000 + round(p["actual"] * 100)
@@ -374,7 +373,7 @@ def optimize_best_ball_lineup(
         cost_matrix.append(row)
 
     assignment = _hungarian_min_cost(cost_matrix)
-    optimal: List[Tuple[str, Dict[str, Any]]] = []
+    optimal: list[tuple[str, dict[str, Any]]] = []
     for slot_idx, col_idx in enumerate(assignment):
         if 0 <= col_idx < num_players:
             slot = starter_slots[slot_idx]
@@ -385,22 +384,22 @@ def optimize_best_ball_lineup(
     return optimal
 
 
-def sleeper_avatar_url(avatar_id: Optional[str], thumb: bool = True) -> Optional[str]:
+def sleeper_avatar_url(avatar_id: str | None, thumb: bool = True) -> str | None:
     """Resolves a Sleeper avatar ID or full URL into an image URL."""
     if not avatar_id:
         return None
-    if avatar_id.startswith("http://") or avatar_id.startswith("https://"):
+    if avatar_id.startswith(("http://", "https://")):
         return avatar_id
     prefix = "https://sleepercdn.com/avatars/thumbs/" if thumb else "https://sleepercdn.com/avatars/"
     return f"{prefix}{avatar_id}"
 
 
-def get_league_type_label(settings: Dict[str, Any]) -> str:
+def get_league_type_label(settings: dict[str, Any]) -> str:
     league_type = settings.get("type", 0)
     return {0: "Redraft", 1: "Keeper", 2: "Dynasty"}.get(league_type, "League")
 
 
-def get_scoring_label(scoring_settings: Dict[str, Any]) -> str:
+def get_scoring_label(scoring_settings: dict[str, Any]) -> str:
     rec = scoring_settings.get("rec", 0.0) or 0.0
     if rec == 1.0:
         base = "PPR"
@@ -415,13 +414,13 @@ def get_scoring_label(scoring_settings: Dict[str, Any]) -> str:
     return base
 
 
-def _roster_fpts(roster_settings: Dict[str, Any], key: str = "fpts") -> float:
+def _roster_fpts(roster_settings: dict[str, Any], key: str = "fpts") -> float:
     whole = roster_settings.get(key) or 0
     dec = roster_settings.get(f"{key}_decimal") or 0
     return round(float(whole) + float(dec) / 100.0, 2)
 
 
-def _compute_roster_ranks(rosters: List[Dict[str, Any]]) -> Dict[int, int]:
+def _compute_roster_ranks(rosters: list[dict[str, Any]]) -> dict[int, int]:
     """Ranks rosters 1..N by wins desc, ties desc, points-for desc."""
     ordered = sorted(
         rosters,
@@ -435,14 +434,14 @@ def _compute_roster_ranks(rosters: List[Dict[str, Any]]) -> Dict[int, int]:
     return {r["roster_id"]: idx + 1 for idx, r in enumerate(ordered) if "roster_id" in r}
 
 
-def _serialize_player_eval(p_eval: Dict[str, Any], slot: str = "") -> Dict[str, Any]:
+def _serialize_player_eval(p_eval: dict[str, Any], slot: str = "") -> dict[str, Any]:
     out = dict(p_eval)
     out["positions"] = sorted(p_eval.get("positions", set()))
     out["slot"] = slot
     return out
 
 
-def get_nfl_state() -> Dict[str, Any]:
+def get_nfl_state() -> dict[str, Any]:
     """Fetches current NFL season/week state from Sleeper."""
     data = load_or_fetch_cache(
         "nfl_state.json",
@@ -456,7 +455,7 @@ def get_nfl_state() -> Dict[str, Any]:
     }
 
 
-def get_user(user_query: str) -> Optional[Dict[str, Any]]:
+def get_user(user_query: str) -> dict[str, Any] | None:
     """Resolves a Sleeper username or user_id."""
     q = (user_query or "").strip()
     if not q:
@@ -474,18 +473,18 @@ def get_user(user_query: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def get_user_leagues_summary(user_id: str, season: int) -> List[Dict[str, Any]]:
+def get_user_leagues_summary(user_id: str, season: int) -> list[dict[str, Any]]:
     """Fetches all NFL leagues for a user in a season, enriched with their roster record and rank."""
     resp = requests.get(SLEEPER_URL + f"v1/user/{user_id}/leagues/nfl/{season}", timeout=10)
     resp.raise_for_status()
     leagues = resp.json() or []
 
-    def _fetch_rosters(league_id: str) -> List[Dict[str, Any]]:
+    def _fetch_rosters(league_id: str) -> list[dict[str, Any]]:
         try:
             r = requests.get(SLEEPER_URL + f"v1/league/{league_id}/rosters", timeout=10)
             r.raise_for_status()
             return r.json() or []
-        except Exception as exc:
+        except requests.RequestException as exc:
             logger.warning("Failed to fetch rosters for league %s: %s", league_id, exc)
             return []
 
@@ -497,7 +496,7 @@ def get_user_leagues_summary(user_id: str, season: int) -> List[Dict[str, Any]]:
             )
         )
 
-    summaries: List[Dict[str, Any]] = []
+    summaries: list[dict[str, Any]] = []
     for lg in leagues:
         lid = lg["league_id"]
         settings = lg.get("settings") or {}
@@ -548,9 +547,9 @@ def get_league_scoreboard(
     league_id: str,
     season: int,
     week: int,
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     refresh_cache: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Returns structured live scoreboard data for all matchups in a league."""
     ttl = 0 if refresh_cache else 43200
 
@@ -605,7 +604,7 @@ def get_league_scoreboard(
         matchups_raw = f_matchups.result() or []
         try:
             game_clocks = f_clocks.result()
-        except Exception as exc:
+        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
             logger.warning("Failed to fetch ESPN game clocks: %s", exc)
             game_clocks = {}
 
@@ -613,15 +612,15 @@ def get_league_scoreboard(
     rosters_by_id = {r["roster_id"]: r for r in rosters if "roster_id" in r}
     ranks = _compute_roster_ranks(rosters)
 
-    grouped_matchups: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+    grouped_matchups: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for m in matchups_raw:
         m_id = m.get("matchup_id")
         if m_id is not None:
             grouped_matchups[m_id].append(m)
 
-    matchups_out: List[Dict[str, Any]] = []
+    matchups_out: list[dict[str, Any]] = []
     for m_id, pair in sorted(grouped_matchups.items()):
-        teams_out: List[Dict[str, Any]] = []
+        teams_out: list[dict[str, Any]] = []
         is_user_matchup = False
 
         for m_entry in pair:
@@ -774,7 +773,7 @@ def run_live_scoreboard(league_id: str, season: int, week: int, refresh_cache: b
     logger.debug("Fetching players...")
     players = load_or_fetch_cache(
         "nfl_players.json",
-        SLEEPER_URL + f"v1/players/nfl",
+        SLEEPER_URL + "v1/players/nfl",
         ttl_seconds=ttl,
     )
 
@@ -808,7 +807,7 @@ def run_live_scoreboard(league_id: str, season: int, week: int, refresh_cache: b
     user_map = {u["user_id"]: u.get("display_name", "Unknown") for u in users}
     roster_owner = {r["roster_id"]: user_map.get(r.get("owner_id"), f"Team {r['roster_id']}") for r in rosters}
 
-    grouped_matchups: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+    grouped_matchups: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for m in matchups:
         m_id = m.get("matchup_id")
         if m_id is not None:
